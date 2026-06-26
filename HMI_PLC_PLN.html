@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HMI PLC - Planta de Nivel</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090d18;
+      --panel: #11192c;
+      --panel-2: #172138;
+      --grid: #172039;
+      --text: #e6f0ff;
+      --muted: #788aaa;
+      --accent: #40c2ff;
+      --green: #32dc69;
+      --orange: #ff8723;
+      --purple: #b45af5;
+      --red: #f04b4b;
+      --pipe: #55d76e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Consolas, ui-monospace, monospace;
+      color: var(--text);
+      background:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+        var(--bg);
+      background-size: 40px 40px;
+    }
+    .app {
+      width: min(1360px, 100vw);
+      margin: 0 auto;
+      padding: 14px 18px 22px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      color: var(--accent);
+    }
+    header p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 310px 292px 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    .panel {
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      border: 1px solid #3a527f;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .panel h2 {
+      margin: 0 0 12px;
+      color: var(--accent);
+      font-size: 15px;
+    }
+    .tank-wrap {
+      height: 548px;
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+    .tank {
+      width: 190px;
+      height: 330px;
+      border: 3px solid #4676be;
+      border-radius: 10px 10px 4px 4px;
+      position: relative;
+      background: linear-gradient(90deg, #0d152b, #15264a);
+      overflow: hidden;
+      box-shadow: inset -22px 0 38px rgba(255,255,255,.04);
+    }
+    .water {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 0%;
+      background: linear-gradient(#28a5eb, #083a96);
+      transition: height .28s ease;
+    }
+    .water::before {
+      content: "";
+      position: absolute;
+      left: -10%;
+      right: -10%;
+      top: -10px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(95, 210, 255, .9);
+      animation: wave 2.2s linear infinite;
+    }
+    @keyframes wave {
+      from { transform: translateX(-12px); }
+      to { transform: translateX(12px); }
+    }
+    .sp-line {
+      position: absolute;
+      left: -18px;
+      right: -18px;
+      height: 2px;
+      bottom: 0%;
+      background: var(--orange);
+      transition: bottom .28s ease;
+    }
+    .sp-line span {
+      position: absolute;
+      right: -72px;
+      top: -9px;
+      color: var(--orange);
+      font-size: 11px;
+    }
+    .pipe {
+      position: absolute;
+      top: 55px;
+      left: 155px;
+      width: 62px;
+      height: 13px;
+      background: var(--pipe);
+      border-radius: 8px;
+    }
+    .pipe::after {
+      content: "";
+      position: absolute;
+      right: -5px;
+      top: 10px;
+      width: 10px;
+      height: 52px;
+      background: var(--pipe);
+      border-radius: 5px;
+    }
+    .level-read {
+      margin-top: 18px;
+      color: var(--accent);
+      font-size: 22px;
+      font-weight: 700;
+      text-align: center;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .card {
+      min-height: 70px;
+      background: var(--panel-2);
+      border: 1px solid #32476f;
+      border-radius: 7px;
+      padding: 9px;
+    }
+    .card label {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      margin-bottom: 7px;
+    }
+    .card strong {
+      display: block;
+      font-size: 19px;
+      line-height: 1;
+    }
+    .card small {
+      display: block;
+      margin-top: 8px;
+      color: #4f6387;
+      font-size: 10px;
+    }
+    .charts {
+      display: grid;
+      gap: 14px;
+    }
+    canvas {
+      width: 100%;
+      height: 165px;
+      display: block;
+      background: #0c1324;
+      border: 1px solid #2d426a;
+      border-radius: 6px;
+    }
+    .chart-title {
+      color: var(--accent);
+      font-size: 13px;
+      margin: 0 0 6px;
+    }
+    .controls {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 150px 1fr 1fr 1fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+    .field label {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 5px;
+    }
+    input {
+      width: 100%;
+      height: 32px;
+      border-radius: 5px;
+      border: 1px solid #3e5a8d;
+      background: #0c1222;
+      color: var(--text);
+      padding: 0 9px;
+      font: inherit;
+    }
+    button {
+      height: 32px;
+      border: 1px solid #4ce08b;
+      border-radius: 6px;
+      background: #23704d;
+      color: white;
+      font: 700 12px Consolas, monospace;
+      cursor: pointer;
+      padding: 0 18px;
+    }
+    .note {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    @media (max-width: 1100px) {
+      .grid { grid-template-columns: 1fr; }
+      .controls { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>HMI PLC - PLANTA DE NIVEL</h1>
+      <p>N7:0 nivel | N7:1 setpoint | N7:4 corriente/control | N7:5 frecuencia</p>
+    </header>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Tanque</h2>
+        <div class="tank-wrap">
+          <div class="pipe"></div>
+          <div class="tank">
+            <div class="water" id="water"></div>
+            <div class="sp-line" id="spLine"><span id="spLabel">SP 0</span></div>
+          </div>
+          <div class="level-read" id="levelRead">0.00 cm</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Datos PLC</h2>
+        <div class="cards">
+          <div class="card"><label>N7:0 Nivel</label><strong id="levelCard">0.00</strong><small>cm</small></div>
+          <div class="card"><label>N7:1 Setpoint</label><strong id="spCard">0.00</strong><small>cm</small></div>
+          <div class="card"><label>Error</label><strong id="errCard">+0.00</strong><small>SP - nivel</small></div>
+          <div class="card"><label>N7:4 Control</label><strong id="ctrlCard">0.00</strong><small>corriente/raw</small></div>
+          <div class="card"><label>N7:5 Frecuencia</label><strong id="freqCard">0.00</strong><small>Hz/raw</small></div>
+          <div class="card"><label>Estado</label><strong id="stateCard">DEMO</strong><small>HTML visual</small></div>
+        </div>
+        <p class="note">Kp, Ki y Kd son referencias locales. En HTML puro el navegador no puede hablar con pycomm3; para PLC real se necesita un backend Python.</p>
+      </div>
+
+      <div class="panel charts">
+        <div>
+          <p class="chart-title">Nivel y setpoint</p>
+          <canvas id="chartLevel" width="760" height="165"></canvas>
+        </div>
+        <div>
+          <p class="chart-title">Error</p>
+          <canvas id="chartError" width="760" height="165"></canvas>
+        </div>
+        <div>
+          <p class="chart-title">Salida PLC</p>
+          <canvas id="chartOut" width="760" height="165"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel controls">
+      <div class="field">
+        <label>Setpoint N7:1</label>
+        <input id="spInput" type="number" min="0" max="50" step="1" value="30">
+      </div>
+      <div class="field">
+        <label>Kp referencia</label>
+        <input id="kpInput" type="number" step="0.00001" value="0.20000">
+      </div>
+      <div class="field">
+        <label>Ki referencia</label>
+        <input id="kiInput" type="number" step="0.000001" value="0.002000">
+      </div>
+      <div class="field">
+        <label>Kd referencia</label>
+        <input id="kdInput" type="number" step="0.00001" value="0.00000">
+      </div>
+      <button id="writeBtn">ESCRIBIR SP</button>
+    </section>
+  </main>
+
+  <script>
+    const maxH = 50;
+    const histMax = 240;
+    const data = { level: [], sp: [], err: [], ctrl: [], freq: [] };
+    let level = 0;
+    let setpoint = 30;
+    let ctrl = 0;
+    let freq = 0;
+
+    const $ = id => document.getElementById(id);
+    $("writeBtn").addEventListener("click", () => {
+      setpoint = Math.max(0, Math.min(maxH, Number($("spInput").value) || 0));
+    });
+
+    function push(arr, value) {
+      arr.push(value);
+      if (arr.length > histMax) arr.shift();
+    }
+
+    function drawChart(canvas, series, min, max) {
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "#0c1324";
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = "#1f2d4b";
+      ctx.lineWidth = 1;
+      for (let i = 1; i < 4; i++) {
+        const y = i * h / 4;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+      const span = Math.max(0.0001, max - min);
+      for (const item of series) {
+        ctx.strokeStyle = item.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        item.values.forEach((v, i) => {
+          const x = i * (w - 1) / Math.max(1, item.values.length - 1);
+          const y = h - ((Math.max(min, Math.min(max, v)) - min) / span) * (h - 1);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+    }
+
+    function tick() {
+      const err = setpoint - level;
+      ctrl = Math.max(0, Math.min(20, err * 0.65 + 8));
+      freq = Math.max(0, Math.min(60, ctrl * 3));
+      level += (setpoint - level) * 0.035 + Math.sin(Date.now() / 900) * 0.015;
+      level = Math.max(0, Math.min(maxH, level));
+
+      push(data.level, level);
+      push(data.sp, setpoint);
+      push(data.err, err);
+      push(data.ctrl, ctrl);
+      push(data.freq, freq);
+
+      $("water").style.height = `${level / maxH * 100}%`;
+      $("spLine").style.bottom = `${setpoint / maxH * 100}%`;
+      $("spLabel").textContent = `SP ${setpoint.toFixed(0)}`;
+      $("levelRead").textContent = `${level.toFixed(2)} cm`;
+      $("levelCard").textContent = level.toFixed(2);
+      $("spCard").textContent = setpoint.toFixed(2);
+      $("errCard").textContent = `${err >= 0 ? "+" : ""}${err.toFixed(2)}`;
+      $("errCard").style.color = Math.abs(err) < 0.6 ? "var(--green)" : "var(--red)";
+      $("ctrlCard").textContent = ctrl.toFixed(2);
+      $("freqCard").textContent = freq.toFixed(2);
+
+      drawChart($("chartLevel"), [
+        { values: data.level, color: "#40c2ff" },
+        { values: data.sp, color: "#ff8723" },
+      ], 0, maxH);
+      drawChart($("chartError"), [
+        { values: data.err, color: "#b45af5" },
+      ], -maxH, maxH);
+      drawChart($("chartOut"), [
+        { values: data.ctrl, color: "#55d76e" },
+        { values: data.freq, color: "#32dc69" },
+      ], 0, 70);
+
+      requestAnimationFrame(tick);
+    }
+    tick();
+  </script>
+</body>
+</html>
